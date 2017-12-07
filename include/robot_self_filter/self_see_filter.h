@@ -55,6 +55,7 @@ public:
     nh_.param<double>("self_see_default_padding", default_padding, .01);
     nh_.param<double>("self_see_default_scale", default_scale, 1.0);
     nh_.param<bool>("keep_organized", keep_organized_, false);
+    this->configure();
     std::vector<robot_self_filter::LinkInfo> links;	
     std::string link_names;
     
@@ -179,14 +180,17 @@ public:
 	
     data_out.points.resize(0);
     data_out.points.reserve(np);
-	
-    for (unsigned int i = 0 ; i < np ; ++i)
-    {
-      if ((keep[i] && invert_) || (!keep[i] && !invert_))
+
+    if (invert_)
       {
-        data_out.points.push_back(data_in.points[i]);
+	for (unsigned int i = 0 ; i < np ; ++i)
+	  {
+	    /* if ((keep[i] && invert_) || (!keep[i] && !invert_)) */
+	    if (keep[i] != robot_self_filter::OUTSIDE) {
+	      data_out.points.push_back(data_in.points[i]);
+	    }
+	  }
       }
-    }
   }
 
   void fillResult(const PointCloud& data_in, const std::vector<int> &keep, PointCloud& data_out)

@@ -51,6 +51,8 @@ public:
     nh_.param<std::string>("sensor_frame", sensor_frame_, std::string());
     nh_.param("use_rgb", use_rgb_, false);
     nh_.param("max_queue_size", max_queue_size_, 10);
+    nh_.param("invert", invert_, false);
+    
     if (use_rgb_) 
     {
       self_filter_rgb_ = new filters::SelfFilter<pcl::PointXYZRGB>(nh_);
@@ -72,6 +74,7 @@ public:
     }
     pointCloudPublisher_ = root_handle_.advertise<sensor_msgs::PointCloud2>("cloud_out", 1,
                                                                             connect_cb, connect_cb);
+
   }
     
   ~SelfFilter(void)
@@ -149,22 +152,46 @@ private:
       typename pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZRGB>);
       pcl::fromROSMsg(*cloud2, *cloud);
       pcl::PointCloud<pcl::PointXYZRGB> out;
-      self_filter_rgb_->updateWithSensorFrame(*cloud, out, sensor_frame_);
-      pcl::toROSMsg(out, out2);
-      out2.header.stamp = cloud2->header.stamp;
-      input_size = cloud->points.size();
-      output_size = out.points.size();
+      pcl::PointCloud<pcl::PointXYZRGB> diff;
+      
+      if (this->invert_) {
+
+	self_filter_rgb_->updateWithSensorFrame(*cloud, out, diff, sensor_frame_);
+	pcl::toROSMsg(diff, out2);
+	out2.header.stamp = cloud2->header.stamp;
+	input_size = cloud->points.size();
+	output_size = diff.points.size();
+	
+      }
+      else {
+	self_filter_rgb_->updateWithSensorFrame(*cloud, out, sensor_frame_);
+	pcl::toROSMsg(out, out2);
+	out2.header.stamp = cloud2->header.stamp;
+	input_size = cloud->points.size();
+	output_size = out.points.size();
+      }
     }
     else
     {
       typename pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
       pcl::fromROSMsg(*cloud2, *cloud);
       pcl::PointCloud<pcl::PointXYZ> out;
-      self_filter_->updateWithSensorFrame(*cloud, out, sensor_frame_);
-      pcl::toROSMsg(out, out2);
-      out2.header.stamp = cloud2->header.stamp;
-      input_size = cloud->points.size();
-      output_size = out.points.size();
+      pcl::PointCloud<pcl::PointXYZ> diff;      
+      
+      if (this->invert_) {
+	self_filter_->updateWithSensorFrame(*cloud, out, diff, sensor_frame_);
+	pcl::toROSMsg(diff, out2);
+	out2.header.stamp = cloud2->header.stamp;
+	input_size = cloud->points.size();
+	output_size = diff.points.size();
+      }
+      else {
+	self_filter_->updateWithSensorFrame(*cloud, out, sensor_frame_);
+	pcl::toROSMsg(out, out2);
+	out2.header.stamp = cloud2->header.stamp;
+	input_size = cloud->points.size();
+	output_size = out.points.size();
+      }
     }
       
     double sec = (ros::WallTime::now() - tm).toSec();
@@ -187,6 +214,7 @@ private:
   bool subscribing_;
   std::vector<std::string> frames_;
   
+  bool invert_;
   ros::Publisher                                        pointCloudPublisher_;
   ros::Subscriber                                       no_filter_sub_;
   int max_queue_size_;
